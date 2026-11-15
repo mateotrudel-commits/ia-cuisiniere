@@ -1,4 +1,4 @@
-name: Construire l'APK
+⁶name: Construire l'APK
 on:
   push:
     branches: [main]
