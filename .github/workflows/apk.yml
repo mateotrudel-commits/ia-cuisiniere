@@ -121,7 +121,16 @@ jobs:
           mkdir -p assets
           cp icon.png assets/icon-only.png
           cp icon.png assets/icon-foreground.png
-          npx capacitor-assets generate --android --iconBackgroundColor '#000000' --iconBackgroundColorDark '#000000'
+          python3 - <<'PY'
+          import zlib, struct
+          w = h = 1024
+          raw = b''.join(b'\x00' + b'\x00\x00\x00' * w for _ in range(h))
+          def chunk(t, d):
+              return struct.pack('>I', len(d)) + t + d + struct.pack('>I', zlib.crc32(t + d) & 0xffffffff)
+          png = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0)) + chunk(b'IDAT', zlib.compress(raw)) + chunk(b'IEND', b'')
+          open('assets/icon-background.png', 'wb').write(png)
+          PY
+          npx capacitor-assets generate --android
           sed -i 's#</manifest>#<uses-permission android:name="android.permission.RECORD_AUDIO"/><uses-permission android:name="android.permission.CAMERA"/><uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/><queries><intent><action android:name="android.speech.RecognitionService"/></intent><intent><action android:name="android.intent.action.TTS_SERVICE"/></intent></queries></manifest>#' android/app/src/main/AndroidManifest.xml
           npx cap sync android
       - name: Construire
