@@ -1,4 +1,4 @@
-⁶name: Construire l'APK
+name: Construire l'APK
 on:
   push:
     branches: [main]
@@ -24,7 +24,7 @@ jobs:
           <!DOCTYPE html>
           <html lang="fr"><head><meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-          <title>IA cuisinière</title>
+          <title>Moodmix</title>
           <style>
           :root{--bg:#0a1030;--bg2:#141c4d;--eye:#22c8f0;--eye2:#2de0d0;--edge:#2a2fd8;color-scheme:dark}
           *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
@@ -44,7 +44,7 @@ jobs:
           <div id="dbg">Touche les yeux.</div>
           <script src="config.js"></script>
           <script>
-          var SYS="Tu es une IA cuisinière avec deux grands yeux. Tu parles à voix haute, en français québécois simple, en 1 à 3 phrases courtes, sans listes ni symboles. L’utilisateur te demande une boisson avec un goût précis (limonade, orage…). Donne les ingrédients, demande ce qu’il a ou n’a pas, propose des substituts, puis guide-le étape par étape. Quand il envoie des photos, dis ce que tu vois et valide ou non les ingrédients.";
+          var SYS="Tu es Moodmix, une IA cuisinière avec deux grands yeux. Tu parles à voix haute, en français québécois simple, en 1 à 3 phrases courtes, sans listes ni symboles. L’utilisateur te demande une boisson avec un goût précis (limonade, orage…). Donne les ingrédients, demande ce qu’il a ou n’a pas, propose des substituts, puis guide-le étape par étape. Quand il envoie des photos, dis ce que tu vois et valide ou non les ingrédients.";
           var key=window.GEMINI_KEY||localStorage.getItem("key")||"";
           var P=(window.Capacitor&&window.Capacitor.Plugins)||{};
           var SR=P.SpeechRecognition,TT=P.TextToSpeech;
@@ -66,7 +66,7 @@ jobs:
           async function send(parts){
             busy=true;mode("think",true);dbg("Je réfléchis…");msgs.push({role:"user",parts:parts});
             try{
-              var r=await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":key},body:JSON.stringify({system_instruction:{parts:[{text:SYS}]},contents:msgs})});
+              var r=await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":key},body:JSON.stringify({system_instruction:{parts:[{text:SYS}]},contents:msgs})});
               var d=await r.json().catch(function(){return {}});
               if(!r.ok){if(r.status==400||r.status==403){key="";localStorage.removeItem("key")}throw new Error("Gemini "+r.status+": "+((d.error&&d.error.message)||""))}
               var t=((d.candidates&&d.candidates[0]&&d.candidates[0].content&&d.candidates[0].content.parts[0].text)||"").replace(/[*#_`]/g,"").trim()||"Je n’ai pas compris, redis-le.";
@@ -115,8 +115,13 @@ jobs:
           npm init -y
           npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6 @capacitor-community/speech-recognition@6
           npm install @capacitor-community/text-to-speech@6 || echo "tts absent"
-          echo '{"appId":"com.iacuisiniere.app","appName":"IA Cuisiniere","webDir":"www"}' > capacitor.config.json
+          npm install @capacitor/assets@3
+          echo '{"appId":"com.moodmix.app","appName":"Moodmix","webDir":"www"}' > capacitor.config.json
           npx cap add android
+          mkdir -p assets
+          cp icon.png assets/icon-only.png
+          cp icon.png assets/icon-foreground.png
+          npx capacitor-assets generate --android --iconBackgroundColor '#000000' --iconBackgroundColorDark '#000000'
           sed -i 's#</manifest>#<uses-permission android:name="android.permission.RECORD_AUDIO"/><uses-permission android:name="android.permission.CAMERA"/><uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/><queries><intent><action android:name="android.speech.RecognitionService"/></intent><intent><action android:name="android.intent.action.TTS_SERVICE"/></intent></queries></manifest>#' android/app/src/main/AndroidManifest.xml
           npx cap sync android
       - name: Construire
@@ -125,5 +130,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-${{ github.run_number }}
-          name: APK ${{ github.run_number }}
+          name: Moodmix APK ${{ github.run_number }}
           files: android/app/build/outputs/apk/debug/app-debug.apk
