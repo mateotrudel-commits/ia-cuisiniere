@@ -29,13 +29,13 @@ jobs:
           :root{--bg:#0a1030;--bg2:#141c4d;--eye:#22c8f0;--eye2:#2de0d0;--edge:#2a2fd8;color-scheme:dark}
           *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
           html,body{height:100%;margin:0}
-          body{background:radial-gradient(ellipse at 50% 40%,var(--bg2),var(--bg) 75%);overflow:hidden;touch-action:manipulation}
-          #eyes{height:100%;display:flex;align-items:center;justify-content:center;gap:8vw;padding:env(safe-area-inset-top,0px) 16px env(safe-area-inset-bottom,0px)}
+          body{background:radial-gradient(ellipse at 50% 40%,var(--bg2),var(--bg) 75%);overflow:hidden;touch-action:none}
+          #eyes{height:100%;display:flex;align-items:center;justify-content:center;gap:8vw;padding:env(safe-area-inset-top,0px) 16px env(safe-area-inset-bottom,0px);touch-action:none}
           .eye{width:min(30vw,38vh);height:min(52vw,62vh);background:linear-gradient(160deg,var(--eye),var(--eye2));border:6px solid var(--edge);border-radius:32px;animation:blink 5s infinite}
           body.listen .eye{box-shadow:0 0 50px var(--eye)}
           body.think .eye,body.talk .eye{animation:pulse .6s infinite alternate}
           body.err .eye{border-color:#ff7a8a;box-shadow:0 0 40px #ff7a8a}
-          #dbg{position:fixed;left:0;right:0;bottom:0;padding:6px 12px calc(6px + env(safe-area-inset-bottom,0px));font:13px sans-serif;color:#8c97c9;text-align:center;pointer-events:none}
+          #dbg{position:fixed;left:0;right:0;bottom:0;padding:6px 12px calc(6px + env(safe-area-inset-bottom,0px));font:15px sans-serif;color:#b8c2f0;text-align:center;pointer-events:none}
           @keyframes blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.08)}}
           @keyframes pulse{to{filter:brightness(1.35)}}
           </style></head>
@@ -63,6 +63,14 @@ jobs:
           }
           function getKey(){if(key)return true;var k=prompt("Clé API Gemini (une seule fois)","");if(k){key=k.trim();localStorage.setItem("key",key)}return !!key}
           function b64(f){return new Promise(function(r){var x=new FileReader();x.onload=function(){r({inline_data:{mime_type:f.type||"image/jpeg",data:x.result.split(",")[1]}})};x.readAsDataURL(f)})}
+          async function askMic(){
+            if(!SR){dbg("Plugin micro introuvable. Plugins: "+Object.keys(P).join(", "));flash();return false}
+            try{
+              var p=await SR.requestPermissions();
+              if(p.speechRecognition!=="granted"){dbg("Micro refusé. Réglages > Applications > Moodmix > Autorisations > Microphone");flash();return false}
+              return true
+            }catch(e){dbg("Micro: "+(e&&e.message||e));flash();return false}
+          }
           async function send(parts){
             busy=true;mode("think",true);dbg("Je réfléchis…");msgs.push({role:"user",parts:parts});
             try{
@@ -88,14 +96,13 @@ jobs:
           }
           async function toggle(){
             if(live){live=false;try{SR.stop()}catch(e){}try{TT&&TT.stop()}catch(e){}try{speechSynthesis.cancel()}catch(e){}speaking=false;mode("talk",false);mode("listen",false);dbg("Arrêté. Touche les yeux.");return}
-            if(!SR){dbg("Plugin micro introuvable");flash();return}
-            if(!getKey()){dbg("Il faut une clé Gemini");flash();return}
+            dbg("Je demande le micro…");
+            if(!(await askMic()))return;
             try{
               var av=await SR.available();
-              if(!av.available){dbg("Reconnaissance vocale absente sur ce téléphone");flash();return}
-              var p=await SR.requestPermissions();
-              if(p.speechRecognition!=="granted"){dbg("Permission micro refusée");flash();return}
+              if(!av.available){dbg("Reconnaissance vocale absente. Active Google dans Services vocaux");flash();return}
             }catch(e){dbg("Micro: "+(e&&e.message||e));flash();return}
+            if(!getKey()){dbg("Il faut une clé Gemini");flash();return}
             live=true;loop();
           }
           var pick=document.createElement("input");pick.type="file";pick.accept="image/*";pick.multiple=true;
@@ -105,10 +112,11 @@ jobs:
             var imgs=await Promise.all(f.map(b64));
             send([{text:"Voici mes ingrédients en photo. Qu’est-ce que tu en penses?"}].concat(imgs));
           };
-          var lp=null,long=false,eyes=document.getElementById("eyes");
-          eyes.addEventListener("pointerdown",function(){long=false;lp=setTimeout(function(){long=true;pick.click()},650)});
-          eyes.addEventListener("pointerup",function(){clearTimeout(lp);if(!long)toggle()});
-          eyes.addEventListener("pointerleave",function(){clearTimeout(lp)});
+          var lp=null,isLong=false,eyes=document.getElementById("eyes");
+          eyes.addEventListener("pointerdown",function(){isLong=false;clearTimeout(lp);lp=setTimeout(function(){isLong=true;pick.click()},650)});
+          eyes.addEventListener("pointerup",function(){clearTimeout(lp);if(!isLong)toggle()});
+          eyes.addEventListener("pointercancel",function(){clearTimeout(lp)});
+          setTimeout(askMic,800);
           </script></body></html>
           EOF
           echo "window.GEMINI_KEY='${{ secrets.GEMINI_API_KEY }}';" > www/config.js
